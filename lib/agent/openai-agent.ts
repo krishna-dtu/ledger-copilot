@@ -184,6 +184,11 @@ export async function askAgent(question: string): Promise<AgentResponse> {
 
       // Execute all tool calls
       for (const toolCall of message.tool_calls) {
+        // Type guard to ensure we have a function tool call
+        if (toolCall.type !== 'function' || !toolCall.function) {
+          continue
+        }
+
         const functionName = toolCall.function.name
         const functionArgs = JSON.parse(toolCall.function.arguments)
 

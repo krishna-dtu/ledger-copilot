@@ -5,7 +5,7 @@
 
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion'
 import { 
   Search, 
@@ -360,7 +360,7 @@ function DetailDrawer({ exception, onClose }: DetailDrawerProps) {
   const [loading, setLoading] = useState(false)
 
   // Fetch transaction details when drawer opens
-  useState(() => {
+  useEffect(() => {
     if (exception && (exception.internal_txn_id || exception.bank_txn_id)) {
       const txnId = exception.internal_txn_id || exception.bank_txn_id
       setLoading(true)
@@ -372,7 +372,7 @@ function DetailDrawer({ exception, onClose }: DetailDrawerProps) {
         })
         .catch(() => setLoading(false))
     }
-  })
+  }, [exception])
 
   if (!exception) return null
 

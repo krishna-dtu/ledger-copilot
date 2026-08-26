@@ -1,0 +1,24 @@
+
+> ledger-copilot@1.0.0 build
+> next build
+
+  ▲ Next.js 14.2.35
+  - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Skipping linting
+   Checking validity of types ...
+Failed to compile.
+
+./components/MatchRateCard.tsx:36:39
+Type error: Property 'created_at' does not exist on type '{ total_records: number; matched_count: number; match_rate: number; exception_count: number; }'.
+
+[0m [90m 34 |[39m         [33m<[39m[33mh2[39m className[33m=[39m[32m"text-xl font-semibold text-white"[39m[33m>[39m[33mReconciliation[39m [33mOverview[39m[33m<[39m[33m/[39m[33mh2[39m[33m>[39m[0m
+[0m [90m 35 |[39m         [33m<[39m[33mdiv[39m className[33m=[39m[32m"text-sm text-gray-400"[39m[33m>[39m[0m
+[0m[31m[1m>[22m[39m[90m 36 |[39m           [33mLatest[39m [33mRun[39m[33m:[39m {[36mnew[39m [33mDate[39m(stats[33m.[39mcreated_at)[33m.[39mtoLocaleString()}[0m
+[0m [90m    |[39m                                       [31m[1m^[22m[39m[0m
+[0m [90m 37 |[39m         [33m<[39m[33m/[39m[33mdiv[39m[33m>[39m[0m
+[0m [90m 38 |[39m       [33m<[39m[33m/[39m[33mdiv[39m[33m>[39m[0m
+[0m [90m 39 |[39m[0m
+Next.js build worker exited with code: 1 and signal: null
