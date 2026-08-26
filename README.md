@@ -527,10 +527,6 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 **Krishna Joshi**
 
-- GitHub: [@krishna-dtu](https://github.com/krishna-dtu)
-- LinkedIn: [Your LinkedIn](https://linkedin.com/in/your-profile)
-- Email: your.email@example.com
-
 Built as part of an academic project to demonstrate AI-powered fintech automation.
 
 ---
@@ -552,11 +548,3 @@ Built as part of an academic project to demonstrate AI-powered fintech automatio
 - [Video Pitch Guide](./VIDEO-PITCH-PROMPT.md)
 
 ---
-
-<div align="center">
-
-**⭐ Star this repo if you found it helpful!**
-
-Made with ❤️ for the fintech community
-
-</div>
