@@ -3,6 +3,8 @@
  * Use this for demo purposes when API quotas are exceeded
  */
 
+import { supabase } from '@/lib/db/supabase'
+
 interface ToolCall {
   name: string
   args: Record<string, any>
@@ -15,17 +17,23 @@ export interface AgentResponse {
 }
 
 /**
- * Execute a tool call by making HTTP request to the corresponding API route
+ * Execute a tool call by directly querying the database
  */
 async function executeTool(toolName: string, args: Record<string, any>): Promise<any> {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-  
   try {
     switch (toolName) {
       case 'get_match_rate': {
-        const response = await fetch(`${baseUrl}/api/reconcile`)
-        if (!response.ok) return { error: 'Failed to fetch match rate' }
-        const data = await response.json()
+        const { data, error } = await supabase
+          .from('reconciliation_runs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+
+        if (error || !data) {
+          return { error: 'No reconciliation runs found' }
+        }
+
         return {
           total_records: data.total_records,
           matched_count: data.matched_count,
@@ -34,25 +42,76 @@ async function executeTool(toolName: string, args: Record<string, any>): Promise
       }
       
       case 'get_exceptions': {
-        const params = new URLSearchParams()
-        if (args.type) params.append('type', args.type)
-        if (args.run_id) params.append('run_id', args.run_id.toString())
-        const response = await fetch(`${baseUrl}/api/exceptions?${params.toString()}`)
-        if (!response.ok) return { error: 'Failed to fetch exceptions' }
-        return await response.json()
+        let query = supabase
+          .from('exceptions')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        // Filter by type if provided
+        if (args.type) {
+          query = query.eq('type', args.type)
+        }
+
+        // Filter by run_id if provided, otherwise get latest run
+        if (args.run_id) {
+          query = query.eq('run_id', args.run_id)
+        } else {
+          // Get latest run ID
+          const { data: runData } = await supabase
+            .from('reconciliation_runs')
+            .select('id')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single()
+
+          if (runData) {
+            query = query.eq('run_id', runData.id)
+          }
+        }
+
+        const { data: exceptions, error } = await query
+
+        if (error) {
+          return { error: 'Failed to fetch exceptions' }
+        }
+
+        return {
+          count: exceptions?.length || 0,
+          exceptions: exceptions || [],
+        }
       }
       
       case 'get_transaction': {
-        const response = await fetch(`${baseUrl}/api/transaction/${args.txn_id}`)
-        if (!response.ok) return { error: `Transaction ${args.txn_id} not found` }
-        return await response.json()
+        const txnId = args.txn_id
+
+        // Fetch from ledger_transactions
+        const { data: transactions, error } = await supabase
+          .from('ledger_transactions')
+          .select('*')
+          .eq('txn_id', txnId)
+
+        if (error) {
+          return { error: `Failed to fetch transaction ${txnId}` }
+        }
+
+        if (!transactions || transactions.length === 0) {
+          return { error: `Transaction ${txnId} not found` }
+        }
+
+        const internal = transactions.filter(t => t.source === 'internal')
+        const bank = transactions.filter(t => t.source === 'bank')
+
+        return {
+          internal_records: internal,
+          bank_records: bank,
+        }
       }
       
       default:
         return { error: `Unknown tool: ${toolName}` }
     }
   } catch (error) {
-    return { error: `Tool failed: ${error instanceof Error ? error.message : 'Unknown'}` }
+    return { error: `Tool failed: ${error instanceof Error ? error.message : 'fetch failed'}` }
   }
 }
 
@@ -68,6 +127,13 @@ export async function askAgent(question: string): Promise<AgentResponse> {
     const result = await executeTool('get_match_rate', {})
     toolCalls.push({ name: 'get_match_rate', args: {}, result })
     
+    if (result.error) {
+      return {
+        answer: `I couldn't retrieve the match rate. ${result.error}`,
+        tool_calls: toolCalls,
+      }
+    }
+
     const matchRate = (result.match_rate * 100).toFixed(1)
     return {
       answer: `Based on the latest reconciliation run, the current match rate is **${matchRate}%**. Out of ${result.total_records} total records, ${result.matched_count} transactions matched successfully between the internal ledger and bank records. There are ${result.total_records - result.matched_count} exceptions that require attention.`,
@@ -80,6 +146,13 @@ export async function askAgent(question: string): Promise<AgentResponse> {
     const result = await executeTool('get_exceptions', { type: 'timing_lag' })
     toolCalls.push({ name: 'get_exceptions', args: { type: 'timing_lag' }, result })
     
+    if (result.error) {
+      return {
+        answer: `I couldn't retrieve timing lag exceptions. ${result.error}`,
+        tool_calls: toolCalls,
+      }
+    }
+
     const timingExceptions = result.exceptions || []
     if (timingExceptions.length === 0) {
       return {
@@ -112,7 +185,28 @@ export async function askAgent(question: string): Promise<AgentResponse> {
     const internal = result.internal_records?.[0]
     const bank = result.bank_records?.[0]
 
-    if (internal && bank && internal.amount !== bank.amount) {
+    if (!internal && !bank) {
+      return {
+        answer: `Transaction ${txnId} was not found in either the internal ledger or bank records.`,
+        tool_calls: toolCalls,
+      }
+    }
+
+    if (!internal) {
+      return {
+        answer: `Transaction **${txnId}** appears in the bank records (₹${bank.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}) but is **missing from the internal ledger**. This could indicate an unrecorded transaction.`,
+        tool_calls: toolCalls,
+      }
+    }
+
+    if (!bank) {
+      return {
+        answer: `Transaction **${txnId}** appears in the internal ledger (₹${internal.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}) but is **missing from bank records**. This could indicate a settlement delay or failed transaction.`,
+        tool_calls: toolCalls,
+      }
+    }
+
+    if (internal.amount !== bank.amount) {
       const diff = Math.abs(internal.amount - bank.amount)
       return {
         answer: `Transaction **${txnId}** has an **amount mismatch**. The ledger shows ₹${internal.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}, while the bank shows ₹${bank.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })} — a difference of ₹${diff.toFixed(2)}. This discrepancy needs to be investigated.`,
@@ -121,7 +215,7 @@ export async function askAgent(question: string): Promise<AgentResponse> {
     }
 
     return {
-      answer: `Transaction ${txnId} appears in both the ledger and bank records with matching amounts of ₹${internal.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}.`,
+      answer: `Transaction **${txnId}** appears in both the ledger and bank records with matching amounts of ₹${internal.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}. Date: ${internal.date}, Merchant: ${internal.merchant_id}.`,
       tool_calls: toolCalls,
     }
   }
@@ -133,6 +227,13 @@ export async function askAgent(question: string): Promise<AgentResponse> {
       const result = await executeTool('get_exceptions', { type })
       toolCalls.push({ name: 'get_exceptions', args: { type }, result })
       
+      if (result.error) {
+        return {
+          answer: `I couldn't retrieve ${type.replace('_', ' ')} exceptions. ${result.error}`,
+          tool_calls: toolCalls,
+        }
+      }
+
       return {
         answer: `There are **${result.count || 0} ${type.replace('_', ' ')} exceptions** in the current reconciliation run.`,
         tool_calls: toolCalls,
@@ -145,6 +246,13 @@ export async function askAgent(question: string): Promise<AgentResponse> {
     const result = await executeTool('get_exceptions', {})
     toolCalls.push({ name: 'get_exceptions', args: {}, result })
     
+    if (result.error) {
+      return {
+        answer: `I couldn't retrieve exceptions. ${result.error}`,
+        tool_calls: toolCalls,
+      }
+    }
+
     return {
       answer: `There are **${result.count} total exceptions** across all types. You can filter by specific exception types in the table to investigate each category.`,
       tool_calls: toolCalls,
