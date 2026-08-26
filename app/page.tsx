@@ -74,6 +74,68 @@ export default function Dashboard() {
     }
   }
 
+  async function handleDownloadDataset() {
+    try {
+      // Fetch all data
+      const [statsRes, exceptionsRes] = await Promise.all([
+        fetch('/api/reconcile'),
+        fetch('/api/exceptions')
+      ])
+
+      const statsData = await statsRes.json()
+      const exceptionsData = await exceptionsRes.json()
+
+      // Fetch transaction details for each exception
+      const transactionDetails = await Promise.all(
+        exceptionsData.exceptions.slice(0, 5).map(async (ex: any) => {
+          const txnId = ex.internal_txn_id || ex.bank_txn_id
+          if (!txnId) return null
+          try {
+            const res = await fetch(`/api/transaction/${txnId}`)
+            return await res.json()
+          } catch {
+            return null
+          }
+        })
+      )
+
+      // Build dataset
+      const dataset = {
+        metadata: {
+          exported_at: new Date().toISOString(),
+          run_id: statsData.run_id,
+          run_date: statsData.created_at,
+        },
+        summary: {
+          total_records: statsData.total_records,
+          matched_count: statsData.matched_count,
+          match_rate: statsData.match_rate,
+          exception_count: statsData.exception_count,
+        },
+        exceptions: exceptionsData.exceptions,
+        sample_transactions: transactionDetails.filter(Boolean),
+        agent_implementation: {
+          current: 'mock-agent',
+          available: ['openai-agent', 'mock-agent'],
+          note: 'OpenAI agent available in lib/agent/openai-agent.ts',
+        }
+      }
+
+      // Download as JSON
+      const blob = new Blob([JSON.stringify(dataset, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `reconciliation-dataset-${new Date().toISOString().split('T')[0]}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Failed to download dataset:', error)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
       {/* Persistent Top Bar */}
@@ -83,38 +145,31 @@ export default function Dashboard() {
             {/* Logo & Title */}
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                <div className="relative w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center shadow-lg">
+                  {/* Professional Logo */}
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
-                    className="w-5 h-5 text-white"
+                    className="w-6 h-6 text-white"
+                    strokeWidth="2"
                   >
                     <path
-                      d="M12 2L2 7L12 12L22 7L12 2Z"
+                      d="M3 3h7v7H3V3zm11 0h7v7h-7V3zM3 14h7v7H3v-7zm11 0h7v7h-7v-7z"
                       stroke="currentColor"
-                      strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     />
                     <path
-                      d="M2 17L12 22L22 17"
+                      d="M9 9L15 15M15 9L9 15"
                       stroke="currentColor"
-                      strokeWidth="2"
                       strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M2 12L12 17L22 12"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
                     />
                   </svg>
+                  <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full border-2 border-gray-950" />
                 </div>
                 <div>
-                  <h1 className="text-base font-semibold text-white">Settlement Reconciliation</h1>
-                  <p className="text-xs text-gray-400">Transaction matching & analysis</p>
+                  <h1 className="text-base font-semibold text-white">Ledger Copilot</h1>
+                  <p className="text-xs text-gray-400">Settlement reconciliation & analysis</p>
                 </div>
               </div>
 
@@ -137,6 +192,15 @@ export default function Dashboard() {
             {/* Actions */}
             <div className="flex items-center gap-3">
               <button
+                onClick={handleDownloadDataset}
+                className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span className="hidden sm:inline">Export Dataset</span>
+              </button>
+              <button
                 onClick={handleRerun}
                 disabled={rerunning}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
@@ -151,6 +215,22 @@ export default function Dashboard() {
                   {rerunning ? 'Running...' : 'Re-run Reconciliation'}
                 </span>
               </button>
+            </div>
+          </div>
+
+          {/* Agent Notice Banner */}
+          <div className="pb-3">
+            <div className="flex items-start gap-3 px-4 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              <div className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center mt-0.5">
+                <span className="text-amber-400 text-xs font-semibold">i</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-amber-300">
+                  <span className="font-medium">Demo Mode:</span> Currently using mock agent due to API billing limits. 
+                  Full OpenAI integration is implemented in the codebase (<code className="px-1 py-0.5 bg-amber-500/10 rounded text-amber-200">lib/agent/openai-agent.ts</code>) 
+                  and can be activated by updating <code className="px-1 py-0.5 bg-amber-500/10 rounded text-amber-200">app/api/ask/route.ts</code>.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -189,7 +269,13 @@ export default function Dashboard() {
             className="space-y-6"
           >
             {/* Hero Stats Overview */}
-            <HeroStats stats={stats} onExceptionClick={scrollToExceptions} />
+            <HeroStats 
+              stats={{
+                ...stats,
+                exception_count: exceptions.length // Use actual exception count from array
+              }} 
+              onExceptionClick={scrollToExceptions} 
+            />
 
             {/* Two-column layout: Exceptions + Chat */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

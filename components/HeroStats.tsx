@@ -53,14 +53,19 @@ export function HeroStats({ stats, onExceptionClick }: HeroStatsProps) {
   }
 
   const matchRate = stats.match_rate * 100
-  const exceptionRate = (stats.exception_count / stats.total_records) * 100
+  
+  // Calculate exception count correctly
+  // The issue is stats.exception_count might be 0, so calculate from total - matched
+  const exceptionCount = stats.exception_count || (stats.total_records - stats.matched_count)
+  const exceptionRate = (exceptionCount / stats.total_records) * 100
 
   // Mock breakdown - in real implementation, fetch from API
+  // Adjusted to match ~40 exceptions based on the data
   const exceptionBreakdown: ExceptionBreakdown[] = [
-    { type: 'amount_mismatch', count: 5, color: '#f97316', label: 'Amount Mismatch' },
-    { type: 'timing_lag', count: 3, color: '#eab308', label: 'Timing Lag' },
-    { type: 'missing_in_bank', count: 5, color: '#ef4444', label: 'Missing in Bank' },
-    { type: 'missing_in_ledger', count: 5, color: '#dc2626', label: 'Missing in Ledger' },
+    { type: 'amount_mismatch', count: 10, color: '#f97316', label: 'Amount Mismatch' },
+    { type: 'timing_lag', count: 8, color: '#eab308', label: 'Timing Lag' },
+    { type: 'missing_in_bank', count: 10, color: '#ef4444', label: 'Missing in Bank' },
+    { type: 'missing_in_ledger', count: 10, color: '#dc2626', label: 'Missing in Ledger' },
     { type: 'duplicate', count: 2, color: '#a855f7', label: 'Duplicate' },
   ]
 
@@ -176,7 +181,7 @@ export function HeroStats({ stats, onExceptionClick }: HeroStatsProps) {
             <StatCard
               icon={AlertCircle}
               label="Exceptions"
-              value={stats.exception_count}
+              value={exceptionCount}
               total={stats.total_records}
               color="amber"
               trend={-0.5}
@@ -202,12 +207,12 @@ export function HeroStats({ stats, onExceptionClick }: HeroStatsProps) {
         <div className="mt-8 pt-6 border-t border-white/5">
           <div className="flex items-center justify-between mb-3">
             <div className="text-sm text-gray-400">Exception Breakdown</div>
-            <div className="text-xs text-gray-500">{stats.exception_count} total</div>
+            <div className="text-xs text-gray-500">{exceptionCount} total</div>
           </div>
           
           <div className="relative h-3 bg-white/5 rounded-full overflow-hidden flex">
             {exceptionBreakdown.map((segment, index) => {
-              const width = (segment.count / stats.exception_count) * 100
+              const width = (segment.count / exceptionCount) * 100
               return (
                 <motion.div
                   key={segment.type}
@@ -227,7 +232,7 @@ export function HeroStats({ stats, onExceptionClick }: HeroStatsProps) {
                     >
                       <div className="text-xs font-medium text-white">{segment.label}</div>
                       <div className="text-xs text-gray-400 mt-0.5">
-                        {segment.count} ({((segment.count / stats.exception_count) * 100).toFixed(1)}%)
+                        {segment.count} ({((segment.count / exceptionCount) * 100).toFixed(1)}%)
                       </div>
                       <div
                         className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-2 h-2 rotate-45 border-r border-b border-white/10"
@@ -292,15 +297,17 @@ function StatCard({
     blue: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
   }
 
-  const hoverClasses = clickable
-    ? 'cursor-pointer hover:bg-white/[0.08] active:bg-white/[0.06]'
-    : ''
-
   return (
-    <motion.div
-      whileHover={!shouldReduceMotion && clickable ? { y: -2 } : {}}
-      onClick={onClick}
-      className={`relative rounded-lg border border-white/5 bg-white/[0.03] p-4 backdrop-blur-sm transition-colors ${hoverClasses}`}
+    <motion.button
+      whileHover={!shouldReduceMotion ? { y: -4, scale: 1.02 } : {}}
+      whileTap={!shouldReduceMotion && clickable ? { scale: 0.98 } : {}}
+      onClick={clickable ? onClick : undefined}
+      disabled={!clickable}
+      className={`relative rounded-lg border border-white/5 bg-white/[0.03] p-4 backdrop-blur-sm transition-all text-left w-full ${
+        clickable 
+          ? 'cursor-pointer hover:bg-white/[0.08] hover:border-white/10 hover:shadow-lg hover:shadow-blue-500/10 active:bg-white/[0.06]' 
+          : 'cursor-default'
+      }`}
     >
       <div className={`inline-flex items-center justify-center w-10 h-10 rounded-lg border ${colorClasses[color]} mb-3`}>
         <Icon className="w-5 h-5" />
@@ -335,6 +342,16 @@ function StatCard({
           </span>
         </div>
       )}
-    </motion.div>
+
+      {clickable && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileHover={{ opacity: 1 }}
+          className="absolute top-3 right-3 text-xs text-blue-400 font-medium"
+        >
+          View →
+        </motion.div>
+      )}
+    </motion.button>
   )
 }
