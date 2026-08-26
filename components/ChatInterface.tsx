@@ -68,7 +68,7 @@ export function ChatInterface() {
     <div className="bg-gray-900 rounded-lg border border-gray-800 p-6 flex flex-col h-[600px]">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold text-white">AI Assistant</h2>
-        <div className="text-xs text-gray-400">Powered by Gemini</div>
+        <div className="text-xs text-gray-400">Intelligent Pattern Matching</div>
       </div>
 
       {/* Messages */}

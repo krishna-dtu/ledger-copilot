@@ -1,10 +1,12 @@
 /**
  * POST /api/ask
- * Q&A endpoint for the Gemini agent
+ * Q&A endpoint for the AI agent
+ * Currently using mock agent due to API quota issues
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { askAgent } from '@/lib/agent/gemini-agent-simple'  // Using simpler API
+// import { askAgent } from '@/lib/agent/openai-agent'  // Use when you have OpenAI credits
+import { askAgent } from '@/lib/agent/mock-agent'  // Mock agent for demo
 
 export async function POST(request: NextRequest) {
   try {
