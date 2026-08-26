@@ -1,6 +1,6 @@
 # Ledger Copilot
 
-**Settlement reconciliation agent for Razorpay AI Buildathon 2026 — Track 04: AI Finance Controller**
+**Settlement reconciliation agent: AI Finance Controller**
 
 A reconciliation system that matches transaction records from internal ledgers and bank statements, identifies discrepancies, and provides an AI-powered Q&A interface to investigate settlement exceptions.
 
@@ -64,4 +64,4 @@ Required in `.env.local`:
 
 ## License
 
-Built for Razorpay AI Buildathon 2026.
+Built by Krishna Joshi as part of Academic Project.
