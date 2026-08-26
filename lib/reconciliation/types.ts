@@ -30,7 +30,7 @@ export interface Exception {
 
 export interface ReconciliationResult {
   total_records: number      // internal.length + bank.length (includes duplicates)
-  matched_count: number
+  matched_count: number       // number of records that were matched (matched_pairs × 2)
   match_rate: number         // matched_count / total_records, rounded to 4 decimals
   exceptions: Exception[]
 }

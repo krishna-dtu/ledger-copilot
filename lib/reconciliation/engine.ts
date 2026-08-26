@@ -58,7 +58,7 @@ export function reconcile(
   // Step 2: Pass 1 - Exact match by txn_id
   const exactResult = exactMatch(dedupInternal, dedupBank)
   allExceptions.push(...exactResult.exceptions)
-  let matched_count = exactResult.matched
+  const matched_pairs = exactResult.matched
   
   // Step 3: Pass 2 - Fuzzy match by amount + date
   const fuzzyResult = fuzzyMatch(exactResult.unmatched_internal, exactResult.unmatched_bank)
@@ -73,7 +73,10 @@ export function reconcile(
     allExceptions.push(buildMissingInLedgerException(txn))
   })
   
-  // Calculate match rate
+  // Calculate match rate and matched record count
+  // matched_pairs = number of perfectly matched transaction pairs
+  // matched_count = total records that were matched (each pair = 2 records)
+  const matched_count = matched_pairs * 2
   const match_rate = total_records > 0
     ? parseFloat((matched_count / total_records).toFixed(MATCH_RATE_PRECISION))
     : 0

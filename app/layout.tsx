@@ -5,8 +5,8 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Ledger Copilot',
-  description: 'Settlement reconciliation agent for finance operations',
+  title: 'Settlement Reconciliation Copilot',
+  description: 'AI-powered transaction reconciliation and exception analysis',
 }
 
 export default function RootLayout({

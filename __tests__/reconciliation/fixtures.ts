@@ -31,8 +31,8 @@ export const PERFECT_MATCH_SET = {
   ],
   expected: {
     total_records: 6,
-    matched_count: 3,
-    match_rate: 0.5,  // 3 matched pairs out of 6 total records
+    matched_count: 6,  // 3 pairs × 2 = 6 records
+    match_rate: 1.0,   // 6/6 = 1.0 (100%)
     exception_count: 0,
   }
 }
@@ -157,7 +157,7 @@ export const ZERO_AMOUNT_SET = {
     tx('TXN100', 0.00, 0.00, '2026-08-20', 'M100', 'bank'),
   ],
   expected: {
-    matched_count: 1,
+    matched_count: 2,  // 1 pair × 2 = 2 records
   }
 }
 
@@ -170,7 +170,7 @@ export const NEGATIVE_AMOUNT_SET = {
     tx('TXN110', -500.00, 0.00, '2026-08-21', 'M110', 'bank'),
   ],
   expected: {
-    matched_count: 1,
+    matched_count: 2,  // 1 pair × 2 = 2 records
   }
 }
 
@@ -248,7 +248,7 @@ export const ALL_EXCEPTIONS_SET = {
   ],
   expected: {
     total_records: 14,  // 7 internal + 7 bank
-    matched_count: 1,   // only TXN201
+    matched_count: 2,   // only TXN201 (1 pair × 2 = 2 records)
     exception_types: ['duplicate', 'duplicate', 'amount_mismatch', 'fee_mismatch', 'missing_in_bank', 'missing_in_ledger', 'timing_lag'],
   }
 }

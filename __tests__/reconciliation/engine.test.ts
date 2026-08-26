@@ -166,8 +166,9 @@ describe('reconcile - integration tests', () => {
     it('should calculate match rate correctly for complex batch', () => {
       const result = reconcile(ALL_EXCEPTIONS_SET.internal, ALL_EXCEPTIONS_SET.bank)
       
-      // 1 match out of 14 total records = 0.0714 (rounded to 4 decimals)
-      expect(result.match_rate).toBeCloseTo(1 / 14, 4)
+      // 1 match out of 14 total records: 1 pair × 2 = 2 records matched
+      // 2/14 = 0.1429 (rounded to 4 decimals)
+      expect(result.match_rate).toBeCloseTo(2 / 14, 4)
     })
   })
 
@@ -183,8 +184,8 @@ describe('reconcile - integration tests', () => {
       const result = reconcile(internal, bank)
       
       expect(result.total_records).toBe(3)
-      expect(result.matched_count).toBe(1)
-      expect(result.match_rate).toBe(0.3333)  // 1/3 = 0.3333 (4 decimals)
+      expect(result.matched_count).toBe(2)  // 1 pair × 2 = 2 records
+      expect(result.match_rate).toBe(0.6667)  // 2/3 = 0.6667 (4 decimals)
     })
   })
 

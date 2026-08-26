@@ -20,6 +20,25 @@ describe('Synthetic Data Reconciliation', () => {
       exceptionCounts[ex.type] = (exceptionCounts[ex.type] || 0) + 1
     })
     
+    // ACCOUNTING: Every record must be accounted for
+    // - matched_count = number of records that matched perfectly (already counts records, not pairs)
+    // - amount_mismatch/fee_mismatch = pairs that matched by txn_id but had mismatches (2 records each)
+    // - timing_lag = pairs that fuzzy matched (2 records each)
+    // - missing_in_bank = internal records with no bank match (1 record each)
+    // - missing_in_ledger = bank records with no internal match (1 record each)
+    // - duplicate = duplicate records flagged but first occurrence still processed
+    
+    const matchedRecords = result.matched_count  // already a record count
+    const amountMismatchRecords = (exceptionCounts['amount_mismatch'] || 0) * 2
+    const feeMismatchRecords = (exceptionCounts['fee_mismatch'] || 0) * 2
+    const timingLagRecords = (exceptionCounts['timing_lag'] || 0) * 2
+    const missingInBankRecords = (exceptionCounts['missing_in_bank'] || 0) * 1
+    const missingInLedgerRecords = (exceptionCounts['missing_in_ledger'] || 0) * 1
+    const duplicateRecords = (exceptionCounts['duplicate'] || 0) * 1  // duplicates are extra records beyond pairs
+    
+    const accountedRecords = matchedRecords + amountMismatchRecords + feeMismatchRecords + 
+                             timingLagRecords + missingInBankRecords + missingInLedgerRecords + duplicateRecords
+    
     // Print results for verification
     console.log('\n' + '='.repeat(80))
     console.log('SYNTHETIC DATA RECONCILIATION TEST RESULTS')
@@ -30,14 +49,31 @@ describe('Synthetic Data Reconciliation', () => {
     console.log(`  Total records: ${result.total_records}`)
     console.log()
     console.log(`Reconciliation Results:`)
-    console.log(`  Matched count: ${result.matched_count}`)
-    console.log(`  Match rate: ${(result.match_rate * 100).toFixed(2)}%`)
+    console.log(`  Matched pairs: ${result.matched_count / 2}`)
+    console.log(`  Matched records: ${result.matched_count}`)
+    console.log(`  Match rate: ${(result.match_rate * 100).toFixed(2)}% (${result.matched_count}/${result.total_records} records)`)
     console.log(`  Total exceptions: ${result.exceptions.length}`)
     console.log()
-    console.log(`Exceptions by type:`)
-    Object.entries(exceptionCounts).sort((a, b) => b[1] - a[1]).forEach(([type, count]) => {
-      console.log(`  ${type.padEnd(20)}: ${count}`)
-    })
+    console.log(`Exceptions by type (with record accounting):`)
+    console.log(`  amount_mismatch     : ${exceptionCounts['amount_mismatch'] || 0} (= ${amountMismatchRecords} records)`)
+    console.log(`  fee_mismatch        : ${exceptionCounts['fee_mismatch'] || 0} (= ${feeMismatchRecords} records)`)
+    console.log(`  timing_lag          : ${exceptionCounts['timing_lag'] || 0} (= ${timingLagRecords} records)`)
+    console.log(`  missing_in_bank     : ${exceptionCounts['missing_in_bank'] || 0} (= ${missingInBankRecords} records)`)
+    console.log(`  missing_in_ledger   : ${exceptionCounts['missing_in_ledger'] || 0} (= ${missingInLedgerRecords} records)`)
+    console.log(`  duplicate           : ${exceptionCounts['duplicate'] || 0} (= ${duplicateRecords} extra records)`)
+    console.log()
+    console.log(`ACCOUNTING:`)
+    console.log(`  Matched records:          ${matchedRecords}`)
+    console.log(`  Amount mismatch records:  ${amountMismatchRecords}`)
+    console.log(`  Fee mismatch records:     ${feeMismatchRecords}`)
+    console.log(`  Timing lag records:       ${timingLagRecords}`)
+    console.log(`  Missing in bank records:  ${missingInBankRecords}`)
+    console.log(`  Missing in ledger records: ${missingInLedgerRecords}`)
+    console.log(`  Duplicate extra records:  ${duplicateRecords}`)
+    console.log(`  ----------------------------------------`)
+    console.log(`  TOTAL ACCOUNTED:          ${accountedRecords}`)
+    console.log(`  TOTAL RECORDS (expected): ${result.total_records}`)
+    console.log(`  DIFFERENCE:               ${result.total_records - accountedRecords}`)
     console.log()
     
     // Show sample exceptions
@@ -64,5 +100,8 @@ describe('Synthetic Data Reconciliation', () => {
     expect(exceptionCounts['missing_in_bank']).toBeGreaterThanOrEqual(4)
     expect(exceptionCounts['duplicate']).toBeGreaterThanOrEqual(2)
     expect(exceptionCounts['timing_lag']).toBeGreaterThanOrEqual(3)
+    
+    // Verify accounting matches
+    expect(accountedRecords).toBe(result.total_records)
   })
 })

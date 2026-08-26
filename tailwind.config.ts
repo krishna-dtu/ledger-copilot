@@ -7,13 +7,7 @@ const config: Config = {
     './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
-    extend: {
-      fontFamily: {
-        sans: ['Inter', 'sans-serif'],
-        mono: ['IBM Plex Mono', 'monospace'],
-        grotesk: ['Space Grotesk', 'sans-serif'],
-      },
-    },
+    extend: {},
   },
   plugins: [],
 }
